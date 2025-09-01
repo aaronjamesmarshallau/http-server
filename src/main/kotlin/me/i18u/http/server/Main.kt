@@ -77,7 +77,7 @@ class HttpHandler(val routes: Map<HttpMethod, Map<String, RequestRunner>>) {
 
     fun readMessage(inputStream: InputStream): RawHttpRequest {
         try {
-            val inBuffer = ByteArray(2048)
+            val inBuffer = ByteArray(64)
             val bufferedReader = BufferedInputStream(inputStream)
 
             // Read the data into the inBuffer
@@ -89,7 +89,7 @@ class HttpHandler(val routes: Map<HttpMethod, Map<String, RequestRunner>>) {
             while (read != -1) {
                 println("Read $read bytes")
                 val newDataChunkString = String(inBuffer, 0, read)
-                val doubleLineBreakIndex = newDataChunkString.indexOf("\r\n")
+                val doubleLineBreakIndex = newDataChunkString.indexOf("\r\n\r\n")
 
                 dataString += newDataChunkString
 
@@ -100,6 +100,16 @@ class HttpHandler(val routes: Map<HttpMethod, Map<String, RequestRunner>>) {
                     break;
                 }
 
+                val lastThreeExistingMessage = dataString.substring(dataString.length - 3, dataString.length)
+                val firstThreeNewChunk = newDataChunkString.substring(0, 3)
+                val seam = lastThreeExistingMessage + firstThreeNewChunk
+                val seamBreakIndex = seam.indexOf("\r\n\r\n")
+
+                if (seamBreakIndex != -1) {
+                    val offset = seamBreakIndex + 1
+                    inBuffer.copyInto(inBuffer, 0, offset, inBuffer.size)
+                    break;
+                }
 
                 read = bufferedReader.read(inBuffer)
             }
